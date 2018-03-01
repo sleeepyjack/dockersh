@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from subprocess import Popen, PIPE
 from configparser import ConfigParser, ExtendedInterpolation
 import docker
 import random
@@ -79,11 +80,13 @@ def run():
                              hostname=cfg.name,
                              labels={'group': prog, 'user': user},
                              volumes=['/home/'+user],
+                             working_dir='/home/'+user,
                              host_config=host_config)
 
     cli.start(cfg.name)
     print(greeting)
-    os.system('docker attach ' + cfg.name) #HACK idk how to do this using Docker API
+    #cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
+    os.system('docker attach ' + cfg.name) #TEMP
 
 if __name__ == "__main__":
     run()
