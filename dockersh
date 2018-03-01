@@ -86,7 +86,7 @@ def run():
     cli.start(cfg.name)
     print(greeting)
     #cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
-    os.system('docker attach ' + cfg.name) #TEMP
+    os.system('docker exec -it ' + cfg.name + ' ' + cfg.shell) #TEMP
 
 if __name__ == "__main__":
     run()
