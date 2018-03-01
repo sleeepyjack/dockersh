@@ -34,11 +34,11 @@ def load_config():
     parser = argparse.ArgumentParser(prog=prog)
 
     parser.add_argument('--version', action='version', version=version)
-    parser.add_argument('-i', '--image', dest='image', help="The Docker base image to be used.", default=ini['image'])
-    parser.add_argument('-n', '--name', dest='name', help="The container name prefixed by '"+prog+"_"+user+"_'.", default=ini['image'])
-    parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="Execute in temporary container.", default=False)
-    parser.add_argument('--shell', dest='shell', help="The shell to start inside the container.", default=ini['shell'])
-    parser.add_argument('--home', dest='home', help="The user home directory.", default=home)
+    parser.add_argument('-i', '--image', dest='image', help="Docker base image to be used", default=ini['image'])
+    parser.add_argument('-n', '--name', dest='name', help="container name prefixed by '"+prog+"_"+user+"_'", default=ini['image'])
+    parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
+    parser.add_argument('--home', dest='home', help="user home directory", default=home)
+    parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
     args = parser.parse_args()
 
     suffix = args.image
@@ -64,10 +64,10 @@ def run():
             container = c
 
     if cfg.temp:
-        host_config = cli.create_host_config(binds=[cfg.home + ':' + cfg.home],
+        host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
                                              auto_remove=True)
     else:
-        host_config = cli.create_host_config(binds=[cfg.home + ':' + cfg.home],
+        host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
                                              restart_policy={'Name' : 'unless-stopped'})
 
     if container == None:
@@ -77,8 +77,8 @@ def run():
                              name=cfg.name,
                              command=cfg.shell,
                              hostname=cfg.name,
-                             labels={'user': user},
-                             volumes=[cfg.home],
+                             labels={'group': prog, 'user': user},
+                             volumes=['/home/'+user],
                              host_config=host_config)
 
     cli.start(cfg.name)
