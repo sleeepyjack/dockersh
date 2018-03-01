@@ -71,7 +71,7 @@ home  = /somewhere/myuser1
 ```
 
 ### Backup
-The home directory of the user is mounted inside of the container and can be used to store data persistent.
+The home directory of the user is mounted inside of the container and can be used to store data persistently.
 However, since the container state is __non-persistent__, make sure you commit your running containers from time to time.
 
 `dockersh` provides an backup script which commits the current state of every `dockersh` container to the local registry.
