@@ -17,10 +17,12 @@ user = os.environ['USER']
 home = os.environ['HOME']
 host = os.uname()[1]
 
+greeting = "Hello " + user + ", you are using " + version + " (" + maintainer + ")\nThis environment is completely encapsulated from the host.\nPlease, feel free to do anything you'd like (except stuff that is prohibited from a legal standpoint)."
+
 def load_ini():
     cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
     cfg.read(config)
-    
+
     if cfg.has_section(user):
         return cfg[user]
     else:
@@ -49,10 +51,6 @@ def load_config():
         rand = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
         args.name = args.name + '_tmp' + rand
     return args
-
-def greeting():
-    s = "Hello " + user + ", you are using " + version + " (" + maintainer + ")\nThis environment is completely encapsulated from the host.\nPlease, feel free to do anything you'd like (except stuff that is prohibited from a legal standpoint)."
-    return s
 
 def run():
     cfg = load_config()
@@ -84,7 +82,7 @@ def run():
                              host_config=host_config)
 
     cli.start(cfg.name)
-    print(greeting())
+    print(greeting)
     os.system('docker attach ' + cfg.name) #HACK idk how to do this using Docker API
 
 if __name__ == "__main__":
