@@ -42,7 +42,7 @@ def load_config():
     parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
     args = parser.parse_args()
 
-    suffix = args.image
+    suffix = args.name
     for c in ['/', ':', '.']:
         suffix = suffix.replace(c, '')
     prefix = prog + '_' + user + '_'
