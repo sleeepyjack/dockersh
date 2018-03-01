@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+from configparser import ConfigParser, ExtendedInterpolation
+import docker
+import random
+import string
+import sys
+
+prog = 'dockersh'
+version = prog+" v0.1"
+config = "/etc/dockersh.ini"
+maintainer = "http://github.com/sleeepyjack/"+prog
+
+user = os.environ['USER']
+home = os.environ['HOME']
+host = os.uname()[1]
+
+def load_ini():
+    cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
+    cfg.read(config)
+    
+    if cfg.has_section(user):
+        return cfg[user]
+    else:
+        return cfg['DEFAULT']
+
+def load_config():
+    ini = load_ini()
+
+    parser = argparse.ArgumentParser(prog=prog)
+
+    parser.add_argument('--version', action='version', version=version)
+    parser.add_argument('-i', '--image', dest='image', help="The Docker base image to be used.", default=ini['image'])
+    parser.add_argument('-n', '--name', dest='name', help="The container name prefixed by '"+prog+"_"+user+"_'.", default=ini['image'])
+    parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="Execute in temporary container.", default=False)
+    parser.add_argument('--shell', dest='shell', help="The shell to start inside the container.", default=ini['shell'])
+    parser.add_argument('--home', dest='home', help="The user home directory.", default=home)
+    args = parser.parse_args()
+
+    suffix = args.image
+    for c in ['/', ':', '.']:
+        suffix = suffix.replace(c, '')
+    prefix = prog + '_' + user + '_'
+    if not args.name.startswith(prefix):
+        args.name = prefix + suffix
+    if args.temp:
+        rand = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+        args.name = args.name + '_tmp' + rand
+    return args
+
+def greeting():
+    s = "Hello " + user + ", you are using " + version + " (" + maintainer + ")\nThis environment is completely encapsulated from the host.\nPlease, feel free to do anything you'd like (except stuff that is prohibited from a legal standpoint)."
+    return s
+
+def run():
+    cfg = load_config()
+
+    cli = docker.APIClient()
+    containers = cli.containers(all=True, filters={'label': "user="+user})
+
+    container = None
+    for c in containers:
+        if c['Names'][0][1:] == cfg.name:
+            container = c
+
+    if cfg.temp:
+        host_config = cli.create_host_config(binds=[cfg.home + ':' + cfg.home],
+                                             auto_remove=True)
+    else:
+        host_config = cli.create_host_config(binds=[cfg.home + ':' + cfg.home],
+                                             restart_policy={'Name' : 'unless-stopped'})
+
+    if container == None:
+        cli.create_container(cfg.image,
+                             stdin_open=True,
+                             tty=True,
+                             name=cfg.name,
+                             command=cfg.shell,
+                             hostname=cfg.name,
+                             labels={'user': user},
+                             volumes=[cfg.home],
+                             host_config=host_config)
+
+    cli.start(cfg.name)
+    print(greeting())
+    os.system('docker attach ' + cfg.name) #HACK idk how to do this using Docker API
+
+if __name__ == "__main__":
+    run()
