@@ -1,69 +1,104 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 
 import argparse
-import os
-from subprocess import Popen, PIPE
+import argcomplete
+from argcomplete.completers import ChoicesCompleter
 from configparser import ConfigParser, ExtendedInterpolation
 import docker
 import random
 import string
+import os
 import sys
 
 prog = 'dockersh'
-version = prog+" v0.1"
-config = "/etc/dockersh.ini"
-maintainer = "http://github.com/sleeepyjack/"+prog
+config_file = "dockersh.ini"
 
 user = os.environ['USER']
 home = os.environ['HOME']
 host = os.uname()[1]
 
-greeting = "Hello " + user + ", you are using " + version + " (" + maintainer + ")\nThis environment is completely encapsulated from the host.\nPlease, feel free to do anything you'd like (except stuff that is prohibited from a legal standpoint)."
+cli = docker.APIClient()
+containers = cli.containers(all=True, filters={'label': "user="+user})
+images = cli.images()
+
+container_names = []
+for c in containers:
+    name = c['Names'][0][1:]
+    container_names.append(name)
+
+image_names = []
+for i in images:
+    name = i['RepoTags'][0]
+    if name != '<none>:<none>':
+        image_names.append(name)
+
+def random_string(length):
+        return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(length))
+
+def strip(s):
+    for c in ['/', ':', '.']:
+        s = s.replace(c, '')
+    return s
 
 def load_ini():
     cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
-    cfg.read(config)
+    cfg.read(config_file)
 
     if cfg.has_section(user):
         return cfg[user]
     else:
         return cfg['DEFAULT']
 
-def load_config():
+def config():
     ini = load_ini()
 
     parser = argparse.ArgumentParser(prog=prog)
-
-    parser.add_argument('--version', action='version', version=version)
-    parser.add_argument('-i', '--image', dest='image', help="Docker base image to be used", default=ini['image'])
-    parser.add_argument('-n', '--name', dest='name', help="container name prefixed by '"+prog+"_"+user+"_'", default=ini['image'])
+    #parser.add_argument('--version', action='version', version=version) #FIXME NameError: name 'version' is not defined
+    parser.add_argument('-i', '--image', dest='image', help="Docker base image to be used", default=ini['image']).completer = ChoicesCompleter(tuple(image_names))
+    parser.add_argument('-n', '--name', dest='name', help="container name").completer = ChoicesCompleter(tuple(container_names))
     parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
     parser.add_argument('--home', dest='home', help="user home directory", default=home)
     parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
+    parser.add_argument('--no-menu', dest='nomenu', action='store_true', help="don't show container selection menu", default=False)
+    argcomplete.autocomplete(parser) #TODO make autocompletion work
     args = parser.parse_args()
 
-    suffix = args.name
-    for c in ['/', ':', '.']:
-        suffix = suffix.replace(c, '')
-    prefix = prog + '_' + user + '_'
-    if not args.name.startswith(prefix):
-        args.name = prefix + suffix
+    args.suffix = ini['suffix']
+    args.greeting = ini['greeting']
+
     if args.temp:
-        rand = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-        args.name = args.name + '_tmp' + rand
+        tmp = '_tmp' + random_string(5)
+        args.name = strip(args.image) + tmp
+    elif args.name:
+        args.name = strip(args.name)
+        if args.name.endswith(args.suffix):
+            args.name = args.name[:len(args.name)-len(args.suffix)]
+    elif not args.nomenu and len(containers) > 1:
+        index = 0
+        _container_names = container_names
+        #TODO swap default
+        _container_names[0] = _container_names[0] + " (default)"
+        print("There are multiple containers assigned to your account")
+        for i, c in enumerate(_container_names):
+            print("[" + str(i+1) + "]\t" + c)
+        inp = input("select [1]: ")
+        if inp == "":
+            index = 0
+        else:
+            index = int(inp) - 1
+            assert(0 <= index < len(_container_names))
+        args.name = _container_names[index]
+    else:
+        args.name = strip(args.image)
+
     return args
 
 def run():
-    cfg = load_config()
-
-    cli = docker.APIClient()
-    containers = cli.containers(all=True, filters={'label': "user="+user})
-
-    container = None
-    for c in containers:
-        if c['Names'][0][1:] == cfg.name:
-            container = c
-
+    cfg = config()
+    full_name = cfg.name + cfg.suffix
+    print(full_name)
+    sys.exit(0)
     if cfg.temp:
         host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
                                              auto_remove=True)
@@ -75,7 +110,7 @@ def run():
         cli.create_container(cfg.image,
                              stdin_open=True,
                              tty=True,
-                             name=cfg.name,
+                             name=full_name,
                              command=cfg.shell,
                              hostname=cfg.name,
                              labels={'group': prog, 'user': user},
@@ -83,10 +118,10 @@ def run():
                              working_dir='/home/'+user,
                              host_config=host_config)
 
-    cli.start(cfg.name)
-    print(greeting)
+    cli.start(full_name)
+    print(cfg.greeting)
     #cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
-    os.system('docker exec -it ' + cfg.name + ' ' + cfg.shell) #TEMP
+    os.system('docker exec -it ' + full_name + ' ' + cfg.shell) #TEMP
 
 if __name__ == "__main__":
     run()
