@@ -12,7 +12,7 @@ import os
 import sys
 
 prog = 'dockersh'
-config_file = "dockersh.ini"
+config_file = "/etc/dockersh.ini"
 
 user = os.environ['USER']
 home = os.environ['HOME']
@@ -55,33 +55,37 @@ def config():
 
     parser = argparse.ArgumentParser(prog=prog)
     #parser.add_argument('--version', action='version', version=version) #FIXME NameError: name 'version' is not defined
-    parser.add_argument('-i', '--image', dest='image', help="Docker base image to be used", default=ini['image']).completer = ChoicesCompleter(tuple(image_names))
+    parser.add_argument('-i', '--image', dest='image', help="Docker base image to be used2", default=ini['image']).completer = ChoicesCompleter(tuple(image_names))
     parser.add_argument('-n', '--name', dest='name', help="container name").completer = ChoicesCompleter(tuple(container_names))
     parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
     parser.add_argument('--home', dest='home', help="user home directory", default=home)
     parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
-    parser.add_argument('--no-menu', dest='nomenu', action='store_true', help="don't show container selection menu", default=False)
+    parser.add_argument('-m', '--no-menu', dest='nomenu', action='store_true', help="don't show container selection menu", default=False)
     argcomplete.autocomplete(parser) #TODO make autocompletion work
     args = parser.parse_args()
 
     args.suffix = ini['suffix']
     args.greeting = ini['greeting']
 
+    #NOTE looks shitty but works just fine
     if args.temp:
         tmp = '_tmp' + random_string(5)
         args.name = strip(args.image) + tmp
     elif args.name:
         args.name = strip(args.name)
-        if args.name.endswith(args.suffix):
-            args.name = args.name[:len(args.name)-len(args.suffix)]
     elif not args.nomenu and len(containers) > 1:
         index = 0
         _container_names = container_names
-        #TODO swap default
-        _container_names[0] = _container_names[0] + " (default)"
+        default = strip(ini['image']) + args.suffix
+        if default in _container_names:
+            default_index = _container_names.index(default)
+            _container_names[0], _container_names[default_index] = _container_names[default_index], _container_names[0]
         print("There are multiple containers assigned to your account")
         for i, c in enumerate(_container_names):
-            print("[" + str(i+1) + "]\t" + c)
+            if i == 0:
+                print("[" + str(i+1) + "]\t" + c + " (default)")
+            else:
+                print("[" + str(i+1) + "]\t" + c)
         inp = input("select [1]: ")
         if inp == "":
             index = 0
@@ -89,24 +93,23 @@ def config():
             index = int(inp) - 1
             assert(0 <= index < len(_container_names))
         args.name = _container_names[index]
+        print(args.name)
     else:
         args.name = strip(args.image)
+
+    if args.name.endswith(args.suffix):
+        args.name = args.name[:len(args.name)-len(args.suffix)]
 
     return args
 
 def run():
     cfg = config()
     full_name = cfg.name + cfg.suffix
-    print(full_name)
-    sys.exit(0)
-    if cfg.temp:
-        host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
-                                             auto_remove=True)
-    else:
-        host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
-                                             restart_policy={'Name' : 'unless-stopped'})
 
-    if container == None:
+    host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
+                                         restart_policy={'Name' : 'unless-stopped'})
+
+    if not full_name in container_names:
         cli.create_container(cfg.image,
                              stdin_open=True,
                              tty=True,
@@ -121,7 +124,10 @@ def run():
     cli.start(full_name)
     print(cfg.greeting)
     #cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
-    os.system('docker exec -it ' + full_name + ' ' + cfg.shell) #TEMP
+    os.system('docker exec -it ' + full_name + ' ' + cfg.shell) #HACK
+
+    if cfg.temp:
+        cli.remove_container(full_name, v=True, force=True)
 
 if __name__ == "__main__":
     run()
