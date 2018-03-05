@@ -81,15 +81,15 @@ def selection_menu(choices):
     else:
         i = int(inp) - 1
         assert(0 <= i < len(choices))
-    return choices[i]
+    return i
 
 def params():
     ini = load_ini()
 
     parser = argparse.ArgumentParser(prog=prog)
     parser.add_argument('--version', action='version', version=version)
-    parser.add_argument('-i', '--image', dest='image', help="base image to be used").completer = ChoicesCompleter(tuple(image_names))
-    parser.add_argument('-n', '--name', dest='name', help="container name").completer = ChoicesCompleter(tuple(container_names))
+    parser.add_argument('-i', '--image', dest='image', help="base image to be used").completer = ChoicesCompleter(tuple(images))
+    parser.add_argument('-n', '--name', dest='name', help="container name").completer = ChoicesCompleter(tuple(containers))
     parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
     parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
     parser.add_argument('--home', dest='home', help="user home directory", default=ini['home'])
@@ -104,18 +104,20 @@ def params():
 
     #TODO implement logic for argument decision tree
 
+    cfg.full_name = cfg.name + cfg.suffix
+
 def run():
     cfg = params()
 
     host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
                                          restart_policy={'Name' : 'unless-stopped'})
 
-    if not cfg.name + cfg.suffix in containers():
+    if not cfg.full_name in containers():
         pull(cfg.image)
         cli.create_container(cfg.image,
                              stdin_open=True,
                              tty=True,
-                             name=cfg.name + cfg.suffix,
+                             name=cfg.full_name,
                              command=cfg.shell,
                              hostname=cfg.name,
                              labels={'group': prog, 'user': user},
@@ -123,13 +125,13 @@ def run():
                              working_dir='/home/'+user,
                              host_config=host_config)
 
-    cli.start(cfg.name + cfg.suffix)
+    cli.start(cfg.full_name)
     print(cfg.greeting)
     #cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
-    os.system('docker exec -it ' + cfg.name + cfg.suffix + ' ' + cfg.shell) #HACK
+    os.system('docker exec -it ' + cfg.full_name + ' ' + cfg.shell) #HACK
 
     if cfg.temp:
-        cli.remove_container(cfg.name + cfg.suffix, v=True, force=True)
+        cli.remove_container(cfg.full_name, v=True, force=True)
 
     cli.close()
 
