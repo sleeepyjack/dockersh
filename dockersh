@@ -2,8 +2,8 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse
-import argcomplete
-from argcomplete.completers import ChoicesCompleter
+#import argcomplete
+#from argcomplete.completers import ChoicesCompleter
 from configparser import ConfigParser, ExtendedInterpolation
 import docker
 import random
@@ -13,10 +13,9 @@ import sys
 
 prog = 'dockersh'
 version = prog + " v1.0"
-config_file = "dockersh.ini"
+config_file = "/etc/dockersh.ini"
 
 user = os.environ['USER']
-home = os.environ['HOME']
 host = os.uname()[1]
 
 cli = docker.APIClient()
@@ -29,13 +28,15 @@ def containers(image_filter='', container_filter='', sort_by='Created', all=True
     return cs
 
 def random_string(length):
-        return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(length))
+        def random_char():
+            return random.choice(string.ascii_uppercase + string.digits)
+        return ''.join(random_char() for _ in range(length))
 
 def strip(s, suffix=''):
+    for c in ['/', ':', '.', ' ']: #QUESTION does this suffice?
+        s = s.replace(c, '')
     if s.endswith(suffix):
         s = s[:len(s)-len(suffix)]
-    for c in ['/', ':', '.']: #QUESTION does this suffice?
-        s = s.replace(c, '')
     return s
 
 def pull(image):
@@ -77,21 +78,44 @@ def selection_menu(choices):
     return i
 
 #if __name__ == "__main__":
-ini = load_ini()
+def parse_args():
+    ini = load_ini()
 
-parser = argparse.ArgumentParser(prog=prog)
-parser.add_argument('--version', action='version', version=version)
-parser.add_argument('-i', '--image', dest='image', help="base image to be used", default="") #.completer = ChoicesCompleter(tuple(images))
-parser.add_argument('-n', '--name', dest='name', help="container name", default="") #.completer = ChoicesCompleter(tuple(containers))
-parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
-parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
-parser.add_argument('--home', dest='home', help="user home directory", default=ini['home'])
-#argcomplete.autocomplete(parser) #TODO make autocompletion work
-args = parser.parse_args()
+    parser = argparse.ArgumentParser(prog=prog)
+    parser.add_argument('--version',
+                        action='version',
+                        version=version)
+    parser.add_argument('-i', '--image',
+                        dest='image',
+                        help="base image to be used",
+                        default="") #.completer = ChoicesCompleter(tuple(images))
+    parser.add_argument('-n', '--name',
+                        dest='name',
+                        help="container name",
+                        default="") #.completer = ChoicesCompleter(tuple(containers))
+    parser.add_argument('-t', '--temporary',
+                        dest='temp',
+                        action='store_true',
+                        help="execute in temporary container",
+                        default=False)
+    parser.add_argument('--shell',
+                        dest='shell',
+                        help="shell to start inside the container",
+                        default=ini['shell'])
+    parser.add_argument('--home',
+                        dest='home',
+                        help="user home directory",
+                        default=ini['homedir'])
+    #argcomplete.autocomplete(parser) #TODO make autocompletion work
+    args = parser.parse_args()
 
-args.suffix = ini['suffix']
-args.greeting = ini['greeting']
+    args.suffix = ini['suffix']
+    args.greeting = ini['greeting']
+    args.ini = ini
+    return args
 
+#if __name__ == "__main__":
+args = parse_args()
 host_config = cli.create_host_config(binds=[args.home + ':/home/' + user],
                                      restart_policy={'Name' : 'unless-stopped'})
 
@@ -116,7 +140,7 @@ else:
         args.name = strip(con_names[i], args.suffix)
     else:
         if not image_passed:
-            args.image = ini['image']
+            args.image = args.ini['image']
         args.image_base, args.image_tag = image_split(args.image)
         args.image = args.image_base + ':' + args.image_tag
 
@@ -124,7 +148,7 @@ else:
             args.name = strip(args.image)
 
         if len(containers(container_filter=args.name)) != 0:
-            print("warning: container name already exists (ignoring --image)")
+            print("WARNING: container name already exists (ignoring --image)")
 
 args.full_name = args.name + args.suffix
 

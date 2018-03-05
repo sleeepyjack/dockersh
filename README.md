@@ -1,21 +1,20 @@
 # dockersh
-A login shell based on Docker containers.
-
+A shell which places users into individual docker containers
 
 ### Usage
 ```sh
-usage: dockersh [-h] [-i IMAGE] [-n NAME] [--shell SHELL] [--home HOME] [-t]
-                [-m]
+usage: dockersh [-h] [--version] [-i IMAGE] [-n NAME] [-t] [--shell SHELL]
+                [--home HOME]
 
 optional arguments:
   -h, --help            show this help message and exit
+  --version             show program's version number and exit
   -i IMAGE, --image IMAGE
-                        Docker base image to be used2
+                        base image to be used
   -n NAME, --name NAME  container name
+  -t, --temporary       execute in temporary container
   --shell SHELL         shell to start inside the container
   --home HOME           user home directory
-  -t, --temporary       execute in temporary container
-  -m, --no-menu         don't show container selection menu
 ```
 #### Examples
 - Change the login shell of a users to `dockersh` with:
@@ -58,16 +57,19 @@ The default configuration for each user is managed via `/etc/dockersh.ini`.
 #### Example
 ```ini
 [DEFAULT]
-image = ubuntu
+image = ubuntu:latest
+suffix = _${USER}
 shell = /bin/bash
+homedir = ${HOME}
+greeting = dockersh (github.com/sleeepyjack/dockersh)
 
 [myuser1]
-image = alpine
+image = alpine:latest
 shell = /bin/ash
 
 [myuser2]
-image = nvidia/cuda
-home  = /somewhere/myuser1
+image = nvidia/cuda:latest
+homedir  = /somewhere/myuser1
 ```
 
 ### Backup
