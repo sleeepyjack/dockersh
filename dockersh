@@ -21,18 +21,12 @@ host = os.uname()[1]
 
 cli = docker.APIClient()
 
-def containers(image_filter='', sort_by='Created', all=True):
+def containers(image_filter='', container_filter='', sort_by='Created', all=True):
     cs = cli.containers(all=all, filters={'label': "user="+user})
     cs.sort(key=lambda c: c[sort_by])
-    cs = [c for c in cs if c['Image'].startswith(image_filter)]
+    cs = [c for c in cs if str(c['Image']+':latest').startswith(image_filter)]
+    cs = [c for c in cs if c['Names'][0][1:].startswith(container_filter)]
     return cs
-
-def images(image_filter='', sort_by='Created'):
-    empty = '<none>:<none>'
-    imgs = cli.images()
-    imgs.sort(key=lambda i: i[sort_by])
-    imgs = [i for i in imgs if i['RepoTags'][0].startswith(image_filter) and i['RepoTags'][0] != empty]
-    return imgs
 
 def random_string(length):
         return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(length))
@@ -59,9 +53,6 @@ def image_split(s):
     else:
         return sp[0], sp[1]
 
-def image_valid(s):
-    return True #TODO implement
-
 def load_ini():
     cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
     cfg.read(config_file)
@@ -72,7 +63,9 @@ def load_ini():
         return cfg['DEFAULT']
 
 def selection_menu(choices):
-    print("There are multiple containers assigned to your account:")
+    if len(choices) == 1:
+        return 0
+    print("There are multiple matching containers running:")
     for j, c in enumerate(choices):
         print("[" + str(j+1) + "]\t" + c)
     inp = input("select [1]: ")
@@ -83,57 +76,78 @@ def selection_menu(choices):
         assert(0 <= i < len(choices))
     return i
 
-def params():
-    ini = load_ini()
+#if __name__ == "__main__":
+ini = load_ini()
 
-    parser = argparse.ArgumentParser(prog=prog)
-    parser.add_argument('--version', action='version', version=version)
-    parser.add_argument('-i', '--image', dest='image', help="base image to be used").completer = ChoicesCompleter(tuple(images))
-    parser.add_argument('-n', '--name', dest='name', help="container name").completer = ChoicesCompleter(tuple(containers))
-    parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
-    parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
-    parser.add_argument('--home', dest='home', help="user home directory", default=ini['home'])
-    argcomplete.autocomplete(parser) #TODO make autocompletion work
-    args = parser.parse_args()
+parser = argparse.ArgumentParser(prog=prog)
+parser.add_argument('--version', action='version', version=version)
+parser.add_argument('-i', '--image', dest='image', help="base image to be used", default="") #.completer = ChoicesCompleter(tuple(images))
+parser.add_argument('-n', '--name', dest='name', help="container name", default="") #.completer = ChoicesCompleter(tuple(containers))
+parser.add_argument('-t', '--temporary', dest='temp', action='store_true', help="execute in temporary container", default=False)
+parser.add_argument('--shell', dest='shell', help="shell to start inside the container", default=ini['shell'])
+parser.add_argument('--home', dest='home', help="user home directory", default=ini['home'])
+#argcomplete.autocomplete(parser) #TODO make autocompletion work
+args = parser.parse_args()
 
-    args.suffix = ini['container_suffix']
-    args.greeting = ini['greeting']
+args.suffix = ini['suffix']
+args.greeting = ini['greeting']
 
-    name_passed  = (args.name  != None)
-    image_passed = (args.image != None)
+host_config = cli.create_host_config(binds=[args.home + ':/home/' + user],
+                                     restart_policy={'Name' : 'unless-stopped'})
 
-    #TODO implement logic for argument decision tree
+name_passed  = (args.name  != "")
+image_passed = (args.image != "")
 
-    cfg.full_name = cfg.name + cfg.suffix
+if args.temp:
+    if not image_passed:
+        args.image = ini['image']
+    args.image_base, args.image_tag = image_split(args.image)
+    args.image = args.image_base + ':' + args.image_tag
+    args.name = strip(args.image) + '_tmp' + random_string(4)
+else:
+    if name_passed:
+        args.name = strip(args.name, args.suffix)
 
-def run():
-    cfg = params()
+    filtered_con = containers(image_filter=args.image, container_filter=args.name)
 
-    host_config = cli.create_host_config(binds=[cfg.home + ':/home/' + user],
-                                         restart_policy={'Name' : 'unless-stopped'})
+    if len(filtered_con) > 0:
+        con_names = [c['Names'][0][1:] for c in filtered_con]
+        i = selection_menu(con_names)
+        args.name = strip(con_names[i], args.suffix)
+    else:
+        if not image_passed:
+            args.image = ini['image']
+        args.image_base, args.image_tag = image_split(args.image)
+        args.image = args.image_base + ':' + args.image_tag
 
-    if not cfg.full_name in containers():
-        pull(cfg.image)
-        cli.create_container(cfg.image,
-                             stdin_open=True,
-                             tty=True,
-                             name=cfg.full_name,
-                             command=cfg.shell,
-                             hostname=cfg.name,
-                             labels={'group': prog, 'user': user},
-                             volumes=['/home/'+user],
-                             working_dir='/home/'+user,
-                             host_config=host_config)
+        if not name_passed:
+            args.name = strip(args.image)
 
-    cli.start(cfg.full_name)
-    print(cfg.greeting)
-    #cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
-    os.system('docker exec -it ' + cfg.full_name + ' ' + cfg.shell) #HACK
+        if len(containers(container_filter=args.name)) != 0:
+            print("warning: container name already exists (ignoring --image)")
 
-    if cfg.temp:
-        cli.remove_container(cfg.full_name, v=True, force=True)
+args.full_name = args.name + args.suffix
 
-    cli.close()
+if len(containers(container_filter=args.name)) == 0:
+    #cli.pull(args.image)
+    cli.create_container(args.image,
+                         stdin_open=True,
+                         tty=True,
+                         name=args.full_name,
+                         command=args.shell,
+                         hostname=args.name,
+                         labels={'group': prog, 'user': user},
+                         volumes=['/home/'+user],
+                         working_dir='/home/'+user,
+                         host_config=host_config)
 
-if __name__ == "__main__":
-    run()
+cli.start(args.full_name)
+os.system('cls||clear')
+print(args.greeting)
+#cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
+os.system('docker exec -it ' + args.full_name + ' ' + args.shell) #HACK
+
+if args.temp:
+    cli.remove_container(args.full_name, v=True, force=True)
+
+cli.close()
