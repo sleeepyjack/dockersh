@@ -22,14 +22,14 @@ optional arguments:
 chsh -s /usr/local/bin/dockersh <username>
 ```
 This change implies that whenever this user tries to logon to the host from outside (using ssh) he will be redirected into his personal `dockersh` container instead to the host itself.
-Hence, he works in an encapsulated environment.
+Therefore, he works in an encapsulated environment.
 
 
 - Start a containerized shell with a specific base image:
 ```
 dockersh -i nvidia/cuda
 ```
-Will give you an interactive shell.
+will give you an interactive shell.
 
 ### Installation
 #### Requirements
