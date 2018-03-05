@@ -4,18 +4,18 @@ A login shell based on Docker containers.
 
 ### Usage
 ```sh
-usage: dockersh [-h] [--version] [-i IMAGE] [-n NAME] [--shell SHELL]
-                [--home HOME] [-t]
+usage: dockersh [-h] [-i IMAGE] [-n NAME] [--shell SHELL] [--home HOME] [-t]
+                [-m]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --version             show program's version number and exit
   -i IMAGE, --image IMAGE
-                        Docker base image to be used
-  -n NAME, --name NAME  container name prefixed by 'dockersh_${USER}_'
+                        Docker base image to be used2
+  -n NAME, --name NAME  container name
   --shell SHELL         shell to start inside the container
   --home HOME           user home directory
   -t, --temporary       execute in temporary container
+  -m, --no-menu         don't show container selection menu
 ```
 #### Examples
 - Change the login shell of a users to `dockersh` with:
