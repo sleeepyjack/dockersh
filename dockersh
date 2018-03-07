@@ -124,7 +124,7 @@ image_passed = (args.image != "")
 
 if args.temp:
     if not image_passed:
-        args.image = ini['image']
+        args.image = args.ini['image']
     args.image_base, args.image_tag = image_split(args.image)
     args.image = args.image_base + ':' + args.image_tag
     args.name = strip(args.image) + '_tmp' + random_string(4)
