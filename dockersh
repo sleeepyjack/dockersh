@@ -123,6 +123,9 @@ def parse_args():
 args = parse_args()
 host_config = cli.create_host_config(binds=[args.home + ':/home/' + user],
                                      restart_policy={'Name' : 'unless-stopped'})
+if os.path.basename(args.cmd.split(" ")[0]).startswith(("scp -p","rsync --server","sftp-server")):
+    os.system("rssh -c \""+args.cmd+"\"")
+    sys.exit(0)
 
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
