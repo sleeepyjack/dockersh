@@ -55,15 +55,6 @@ def image_split(s):
     else:
         return sp[0], sp[1]
 
-def load_ini():
-    cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
-    cfg.read(config_file)
-
-    if cfg.has_section(user):
-        return cfg[user]
-    else:
-        return cfg['DEFAULT']
-
 def selection_menu(choices):
     if len(choices) == 1:
         return 0
@@ -80,7 +71,8 @@ def selection_menu(choices):
 
 #if __name__ == "__main__":
 def parse_args():
-    ini = load_ini()
+
+
 
     parser = argparse.ArgumentParser(prog=prog)
     parser.add_argument('--version',
@@ -119,12 +111,27 @@ def parse_args():
     args.ini = ini
     return args
 
+
+# load ini
+cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
+cfg.read(config_file)
+
+admin_cmd = "admin"
+if cfg.has_section("ADMINS") and "command" in cfg["ADMINS"]["command"]:
+    admin_cmd = cfg["ADMINS"]["command"]
+ini = cfg[user] if cfg.has_section(user) else cfg['DEFAULT']
+
 #if __name__ == "__main__":
 args = parse_args()
+
 host_config = cli.create_host_config(binds=[args.home + ':/home/' + user],
                                      restart_policy={'Name' : 'unless-stopped'})
 if os.path.basename(args.cmd.split(" ")[0]).startswith(("scp -p","rsync --server","sftp-server")):
     os.system("rssh -c \""+args.cmd+"\"")
+    sys.exit(0)
+if args.cmd == admin_cmd:
+    print("Trying to login into host: "+user)
+    os.system("sudo -u "+user+" su - "+user)
     sys.exit(0)
 
 name_passed  = (args.name  != "")
