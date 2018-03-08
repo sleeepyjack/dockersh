@@ -126,14 +126,18 @@ args = parse_args()
 
 host_config = cli.create_host_config(binds=[args.home + ':/home/' + user],
                                      restart_policy={'Name' : 'unless-stopped'})
-if os.path.basename(args.cmd.split(" ")[0]).startswith(("scp -p","rsync --server","sftp-server")):
-    os.system("rssh -c \""+args.cmd+"\"")
-    sys.exit(0)
+
 if args.cmd == admin_cmd:
     print("Trying to login into host: "+user)
-    os.system("sudo -u "+user+" su - "+user)
+    os.system("sudo -S su "+user+"; cd /home/"+user)
     sys.exit(0)
 
+
+if args.cmd:
+    cmd_splits = args.cmd.split(" ",1)
+    if (os.path.basename(cmd_splits[0])+cmd_splits[1]).startswith(("scp -p","rsync --server","sftp-server")):
+        os.system("rssh -c \""+args.cmd+"\"")
+        sys.exit(0)
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
 
