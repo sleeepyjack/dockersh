@@ -124,9 +124,6 @@ ini = cfg[user] if cfg.has_section(user) else cfg['DEFAULT']
 #if __name__ == "__main__":
 args = parse_args()
 
-host_config = cli.create_host_config(binds=[args.home + ':/home/' + user],
-                                     restart_policy={'Name' : 'unless-stopped'})
-
 if args.cmd == admin_cmd:
     print("Trying to login into host: "+user)
     os.system("sudo -S su "+user+"; cd /home/"+user)
@@ -172,6 +169,17 @@ else:
 args.full_name = args.name + args.suffix
 
 if len(containers(container_filter=args.name)) == 0:
+    volumes = [args.home+':/home/'+user+':rw']
+    if "volumes" in args.ini:
+        volumes = volumes + args.ini["volumes"].split(",")
+    volumes = [v.split(":") for v in volumes]
+    binds = {v[1].strip():{"bind":v[0].strip(),"mode":v[2].strip()} for v in volumes}
+    volumes = [v[1] for v in volumes]
+
+    host_config = cli.create_host_config(#binds=[args.home + ':/home/' + user],
+        binds=binds,
+        restart_policy={'Name' : 'unless-stopped'})
+
     #cli.pull(args.image)
     cli.create_container(args.image,
                          stdin_open=True,
@@ -180,14 +188,15 @@ if len(containers(container_filter=args.name)) == 0:
                          command=args.shell,
                          hostname=args.name,
                          labels={'group': prog, 'user': user},
-                         volumes=['/home/'+user],
+                         volumes=volumes,
                          working_dir='/home/'+user,
-                         host_config=host_config)
+                         host_config=host_config
+                         )
 
 cli.start(args.full_name)
 print(args.greeting)
 cmd = args.cmd if args.cmd else args.shell
-#cli.attach(cfg.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
+#cli.attach(args.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
 docker_arg = "" if not sys.stdout.isatty() else "-it"
 os.system('docker exec ' + docker_arg +' '+ args.full_name + ' ' + cmd) #HACK
 
