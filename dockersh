@@ -11,6 +11,7 @@ import docker
 import random
 import string
 import sys
+from pwd import getpwnam
 
 prog = 'dockersh'
 version = prog + " v1.0"
@@ -187,6 +188,7 @@ if len(containers(container_filter=args.name)) == 0:
         restart_policy={'Name' : 'unless-stopped'})
 
     #cli.pull(args.image)
+    userpwd = getpwnam(user)
     cli.create_container(args.image,
                          stdin_open=True,
                          tty=True,
@@ -196,6 +198,11 @@ if len(containers(container_filter=args.name)) == 0:
                          labels={'group': prog, 'user': user},
                          volumes=volumes,
                          working_dir=args.home,
+                         environment={
+                            "HOST_USER_ID": userpwd.pw_uid,
+                            "HOST_USER_GID": userpwd.pw_gid,
+                            "HOST_USER_NAME": user
+                         },
                          host_config=host_config
                          )
 
@@ -205,7 +212,7 @@ os.system('docker exec '+args.full_name + ' true') #HACK to start entrypoint (an
 cmd = args.cmd if args.cmd else args.shell
 #cli.attach(args.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
 docker_arg = "" if not sys.stdout.isatty() else "-it"
-os.system('docker exec ' + docker_arg +' '+ args.full_name + ' ' + cmd) #HACK
+os.system('docker exec -u '+user+ " " + docker_arg +' '+ args.full_name + ' ' + cmd) #HACK
 
 if args.temp:
     cli.remove_container(args.full_name, v=True, force=True)

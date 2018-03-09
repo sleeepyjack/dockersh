@@ -82,6 +82,21 @@ image = nvidia/cuda:latest
 homedir  = /somewhere/myuser1
 ```
 
+### Permission Errors - or: Make Container User = Host User
+By default, docker runs as root, hence in the container, the home-directory of the user will be not accessable by default and has to be chowned at first.
+After chowning, rssh will not work anymore, because it needs the home-directory to be chowned by the user himself.
+To prevent this problem due to permissions we encourage you to use the image template of this repository.
+
+1. Just type 
+```
+	./make_user_image.sh ubuntu_user ubuntu
+```
+to create a local image named 'ubuntu_user' that - together with dockersh - creates a user with the same uid and gid of the host user that runs `dockersh`.
+2. Change your `/etc/dockersh.ini` to use the `ubuntu_user`-image.
+
+**Note:** By default, it will overwrite the entrypoint of the 'cloned' image.
+
+
 ### Backup
 The home directory of the user is mounted inside of the container and can be used to store data persistently.
 However, since the container state is __non-persistent__, make sure you commit your running containers from time to time.
