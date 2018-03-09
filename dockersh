@@ -126,13 +126,19 @@ args = parse_args()
 
 if args.cmd == admin_cmd:
     print("Trying to login into host: "+user)
-    os.system("sudo -S su "+user+"; cd /home/"+user)
+    if not sys.stdout.isatty():
+        print()
+        print("admin mode is only possible using pseudo tty-allocation.")
+        print("Try login using:")
+        print("ssh -t ...")
+        sys.exit(0)
+    os.system("sudo su "+user+"; cd /home/"+user)
     sys.exit(0)
 
 
 if args.cmd:
     cmd_splits = args.cmd.split(" ",1)
-    if (os.path.basename(cmd_splits[0])+cmd_splits[1]).startswith(("scp -p","rsync --server","sftp-server")):
+    if (os.path.basename(cmd_splits[0])+" "+cmd_splits[1]).startswith(("scp -p","rsync --server","sftp-server")):
         os.system("rssh -c \""+args.cmd+"\"")
         sys.exit(0)
 name_passed  = (args.name  != "")
@@ -189,7 +195,7 @@ if len(containers(container_filter=args.name)) == 0:
                          hostname=args.name,
                          labels={'group': prog, 'user': user},
                          volumes=volumes,
-                         working_dir='/home/'+user,
+                         working_dir=args.home,
                          host_config=host_config
                          )
 
