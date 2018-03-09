@@ -201,6 +201,7 @@ if len(containers(container_filter=args.name)) == 0:
 
 cli.start(args.full_name)
 print(args.greeting)
+os.system('docker exec '+args.full_name + ' true') #HACK to start entrypoint (and user creation)
 cmd = args.cmd if args.cmd else args.shell
 #cli.attach(args.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
 docker_arg = "" if not sys.stdout.isatty() else "-it"
