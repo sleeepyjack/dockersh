@@ -118,8 +118,11 @@ cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
 cfg.read(config_file)
 
 admin_cmd = "admin"
-if cfg.has_section("ADMINS") and "command" in cfg["ADMINS"]["command"]:
+admin_shell = "/bin/bash"
+if cfg.has_section("ADMINS") and "command" in cfg["ADMINS"]:
     admin_cmd = cfg["ADMINS"]["command"]
+    if "admin_shell" in cfg["ADMINS"]:
+        admin_shell = cfg["ADMINS"]["admin_shell"]
 ini = cfg[user] if cfg.has_section(user) else cfg['DEFAULT']
 
 #if __name__ == "__main__":
@@ -133,7 +136,7 @@ if args.cmd == admin_cmd:
         print("Try login using:")
         print("ssh -t ...")
         sys.exit(0)
-    os.system("sudo su "+user+"; cd /home/"+user)
+    os.system("sudo -u "+user+" "+admin_shell)
     sys.exit(0)
 
 
