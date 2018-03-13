@@ -96,10 +96,6 @@ def parse_args():
                         dest='cmd',
                         help="pass command to bash in container",
                         default="")
-    parser.add_argument('--shell',
-                        dest='shell',
-                        help="shell to start inside the container",
-                        default=ini['shell'])
     parser.add_argument('--home',
                         dest='home',
                         help="user home directory",
@@ -119,10 +115,10 @@ cfg.read(config_file)
 
 admin_cmd = "admin"
 admin_shell = "/bin/bash"
-if cfg.has_section("ADMINS") and "command" in cfg["ADMINS"]:
-    admin_cmd = cfg["ADMINS"]["command"]
-    if "admin_shell" in cfg["ADMINS"]:
-        admin_shell = cfg["ADMINS"]["admin_shell"]
+if cfg.has_section("ADMIN") and "command" in cfg["ADMIN"]:
+    admin_cmd = cfg["ADMIN"]["command"]
+    if "admin_shell" in cfg["ADMIN"]:
+        admin_shell = cfg["ADMIN"]["admin_shell"]
 ini = cfg[user] if cfg.has_section(user) else cfg['DEFAULT']
 
 #if __name__ == "__main__":
@@ -196,7 +192,6 @@ if len(containers(container_filter=args.name)) == 0:
                          stdin_open=True,
                          tty=True,
                          name=args.full_name,
-                         command=args.shell,
                          hostname=args.name,
                          labels={'group': prog, 'user': user},
                          volumes=volumes,
@@ -211,11 +206,10 @@ if len(containers(container_filter=args.name)) == 0:
 
 cli.start(args.full_name)
 print(args.greeting)
-os.system('docker exec '+args.full_name + ' true') #HACK to start entrypoint (and user creation)
-cmd = args.cmd if args.cmd else args.shell
-#cli.attach(args.name, stream=True) #BUG https://github.com/docker/docker-py/issues/390
+user_bash = os.popen('docker exec '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
+cmd = args.cmd if args.cmd else user_bash
 docker_arg = "" if not sys.stdout.isatty() else "-it"
-os.system('docker exec -u '+user+ " " + docker_arg +' '+ args.full_name + ' ' + cmd) #HACK
+os.system('docker exec -u '+user+ " " + docker_arg +' '+ args.full_name + ' ' + cmd)
 
 if args.temp:
     cli.remove_container(args.full_name, v=True, force=True)
