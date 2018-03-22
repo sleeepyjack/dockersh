@@ -137,8 +137,7 @@ if args.cmd == admin_cmd:
 
 
 if args.cmd:
-    cmd_splits = args.cmd.split(" ",1)
-    if len(cmd_splits) > 1 and (os.path.basename(cmd_splits[0])+" "+cmd_splits[1]).startswith(("scp -p","rsync --server","sftp-server")):
+    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server")):
         os.system("rssh -c \""+args.cmd+"\"")
         sys.exit(0)
 name_passed  = (args.name  != "")
