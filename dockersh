@@ -138,7 +138,7 @@ if args.cmd == admin_cmd:
 
 is_scp_cmd = False
 if args.cmd:
-    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server")):
+    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls")):
         is_scp_cmd = True
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
@@ -204,7 +204,7 @@ if len(containers(container_filter=args.name)) == 0:
                          )
 
 cli.start(args.full_name)
-if not is_scp_cmd:
+if len(args.cmd) == 0:
     print(args.greeting)
 user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
 if user_bash == "":
@@ -214,7 +214,7 @@ cmd = args.cmd if args.cmd else user_bash
 # only sometimes working hotfix for https://github.com/moby/moby/issues/35407
 if not is_scp_cmd:
     cmd = "/bin/bash -c \"sleep 0.1 && " + cmd + "\""
-
+ 
 # a tty needs -it, scp needs -i
 docker_arg = "-i" if not sys.stdout.isatty() or is_scp_cmd else "-it"
 os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd)
