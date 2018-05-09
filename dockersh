@@ -17,7 +17,9 @@ prog = 'dockersh'
 version = prog + " v1.0"
 config_file = "/etc/dockersh.ini"
 
-user = os.environ['USER']
+import getpass
+user = getpass.getuser()
+
 host = os.uname()[1]
 
 cli = docker.APIClient()
@@ -110,7 +112,10 @@ def parse_args():
 
 
 # load ini
-cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
+config_envir = {
+    "USER": user
+}
+cfg = ConfigParser(config_envir, interpolation=ExtendedInterpolation())
 cfg.read(config_file)
 
 admin_cmd = "admin"
@@ -140,6 +145,8 @@ is_scp_cmd = False
 if args.cmd:
     if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls")):
         is_scp_cmd = True
+    if args.cmd == "envir":
+        print(os.environ)
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
 
