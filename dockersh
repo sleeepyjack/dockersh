@@ -17,8 +17,8 @@ prog = 'dockersh'
 version = prog + " v1.0"
 config_file = "/etc/dockersh.ini"
 
-import getpass
-user = getpass.getuser()
+import os
+user = os.getlogin()
 
 host = os.uname()[1]
 
