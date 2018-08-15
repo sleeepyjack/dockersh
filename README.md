@@ -38,6 +38,7 @@ will give you an interactive shell.
 - [Python 3.x](https://www.python.org/downloads/)
 - [pip](https://pip.pypa.io/en/stable/installing/)
 
+
 Make sure all `dockersh` users have the [permissions to interact with the Docker daemon](https://docs.docker.com/install/linux/linux-postinstall/).
 
 You can install `dockersh` using the provided install script:
@@ -50,6 +51,15 @@ docker pull ubuntu
 dockersh -t
 ```
 This should give you an interactive shell in a temporary container.
+
+**To enable scp,rsync,sftp for all users, configure rssh as follows:**
+```
+sudo echo "
+allowscp
+allowsftp
+allowrsync
+" > /etc/rssh.conf
+```
 
 ### Configuration
 The default configuration for each user is managed via `/etc/dockersh.ini`.
