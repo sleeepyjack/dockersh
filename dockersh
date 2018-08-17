@@ -180,6 +180,7 @@ else:
 
 args.full_name = args.name + args.suffix
 
+initing = False
 if len(containers(container_filter=args.name)) == 0:
     volumes = []
     if "volumes" in args.ini:
@@ -209,8 +210,12 @@ if len(containers(container_filter=args.name)) == 0:
                          },
                          host_config=host_config
                          )
+    initing=True
 
 cli.start(args.full_name)
+if initing:
+    print("Initializing container ...")
+    os.popen('docker exec '+args.full_name + ' echo Initialization finished.').read().split(":")[-1]
 if len(args.cmd) == 0:
     print(args.greeting)
 user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
