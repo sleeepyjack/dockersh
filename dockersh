@@ -17,7 +17,9 @@ prog = 'dockersh'
 version = prog + " v1.0"
 config_file = "/etc/dockersh.ini"
 
-user = os.environ['USER']
+import os
+user = os.getlogin()
+
 host = os.uname()[1]
 
 cli = docker.APIClient()
@@ -110,7 +112,10 @@ def parse_args():
 
 
 # load ini
-cfg = ConfigParser(os.environ, interpolation=ExtendedInterpolation())
+config_envir = {
+    "USER": user
+}
+cfg = ConfigParser(config_envir, interpolation=ExtendedInterpolation())
 cfg.read(config_file)
 
 admin_cmd = "admin"
@@ -136,11 +141,12 @@ if args.cmd == admin_cmd:
     sys.exit(0)
 
 
+is_scp_cmd = False
 if args.cmd:
-    cmd_splits = args.cmd.split(" ",1)
-    if len(cmd_splits) > 1 and (os.path.basename(cmd_splits[0])+" "+cmd_splits[1]).startswith(("scp -p","rsync --server","sftp-server")):
-        os.system("rssh -c \""+args.cmd+"\"")
-        sys.exit(0)
+    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls")):
+        is_scp_cmd = True
+    if args.cmd == "envir":
+        print(os.environ)
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
 
@@ -174,6 +180,7 @@ else:
 
 args.full_name = args.name + args.suffix
 
+initing = False
 if len(containers(container_filter=args.name)) == 0:
     volumes = []
     if "volumes" in args.ini:
@@ -203,16 +210,26 @@ if len(containers(container_filter=args.name)) == 0:
                          },
                          host_config=host_config
                          )
+    initing=True
 
 cli.start(args.full_name)
-print(args.greeting)
-user_bash = os.popen('docker exec -u root -it '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
-user_bash = ""
+if initing:
+    print("Initializing container ...")
+    os.popen('docker exec '+args.full_name + ' echo Initialization finished.').read().split(":")[-1]
+if len(args.cmd) == 0:
+    print(args.greeting)
+user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
 if user_bash == "":
     user_bash = "/bin/bash"
 cmd = args.cmd if args.cmd else user_bash
-docker_arg = "" if not sys.stdout.isatty() else "-it"
-os.system('docker exec -u '+user+ " " + docker_arg +' '+ args.full_name + ' ' + cmd)
+
+# only sometimes working hotfix for https://github.com/moby/moby/issues/35407
+if not is_scp_cmd:
+    cmd = "/bin/bash -c \"sleep 0.1 && " + cmd + "\""
+ 
+# a tty needs -it, scp needs -i
+docker_arg = "-i" if not sys.stdout.isatty() or is_scp_cmd else "-it"
+os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd)
 
 if args.temp:
     cli.remove_container(args.full_name, v=True, force=True)

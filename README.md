@@ -37,7 +37,6 @@ will give you an interactive shell.
 - [Docker](https://docs.docker.com/install/)
 - [Python 3.x](https://www.python.org/downloads/)
 - [pip](https://pip.pypa.io/en/stable/installing/)
-- [rssh](http://www.pizzashack.org/rssh/)
 
 
 Make sure all `dockersh` users have the [permissions to interact with the Docker daemon](https://docs.docker.com/install/linux/linux-postinstall/).
@@ -85,8 +84,7 @@ homedir  = /somewhere/myuser1
 
 ### Permission Errors - or: Make Container User = Host User
 By default, docker runs as root, hence in the container, the home-directory of the user will be not accessable by default and has to be chowned at first.
-After chowning, rssh will not work anymore, because it needs the home-directory to be chowned by the user himself.
-To prevent this problem due to permissions we encourage you to use the image template of this repository.
+To prevent this problem due to permissions we encourage you to use the image template of this repository, that maps the internal docker-user to the host-user.
 
 1. Just type 
 ```
