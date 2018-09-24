@@ -91,7 +91,7 @@ def parse_args():
                         dest='temp',
                         action='store_true',
                         help="execute in temporary container",
-                        default=ini['temporary'])
+                        default=ini.getboolean('temporary', False))
     parser.add_argument('-c', '--command',
                         dest='cmd',
                         help="pass command to bash in container",
