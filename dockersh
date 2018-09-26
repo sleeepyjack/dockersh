@@ -100,6 +100,9 @@ def parse_args():
                         dest='home',
                         help="user home directory",
                         default=ini['homedir'])
+    parser.add_argument('--privileged', dest='privileged'
+                        help="run the container in privileged mode",
+                        default=ini.getboolean('privileged', False))
     #argcomplete.autocomplete(parser) #TODO make autocompletion work
     args = parser.parse_args()
 
@@ -201,7 +204,8 @@ if len(containers(container_filter=args.name)) == 0:
                             "HOST_USER_GID": userpwd.pw_gid,
                             "HOST_USER_NAME": user
                          },
-                         host_config=host_config
+                         host_config=host_config,
+                         privileged=args.privileged
                          )
 
 cli.start(args.full_name)
