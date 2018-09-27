@@ -116,7 +116,8 @@ def parse_args():
 
 # load ini
 config_envir = {
-    "USER": user
+    "USER": user,
+    "HOME": os.environ['HOME']
 }
 cfg = ConfigParser(config_envir, interpolation=ExtendedInterpolation())
 cfg.read(config_file)
@@ -194,7 +195,8 @@ if len(containers(container_filter=args.name)) == 0:
 
     host_config = cli.create_host_config(
         binds=binds,
-        restart_policy={'Name' : 'unless-stopped'})
+        restart_policy={'Name' : 'unless-stopped'},
+        privileged=args.privileged)
 
     #cli.pull(args.image)
     userpwd = getpwnam(user)
@@ -211,8 +213,7 @@ if len(containers(container_filter=args.name)) == 0:
                             "HOST_USER_GID": userpwd.pw_gid,
                             "HOST_USER_NAME": user
                          },
-                         host_config=host_config,
-                         privileged=args.privileged
+                         host_config=host_config 
                          )
     initing=True
 
