@@ -105,6 +105,12 @@ def parse_args():
     parser.add_argument('--privileged', dest='privileged',
                         help="run the container in privileged mode",
                         default=ini.getboolean('privileged', False))
+    parser.add_argument('--cap_add', dest='cap_add',
+                        help="capabilities to add to the container",
+                        default=ini.get('cap_add', None))
+    parser.add_argument('--post_cmd', dest='post_cmd',
+                        help="command to run before the container is deleted",
+                        default=ini.get('post_cmd', None))
     #argcomplete.autocomplete(parser) #TODO make autocompletion work
     args = parser.parse_args()
 
@@ -144,6 +150,8 @@ if args.cmd == admin_cmd:
     os.system("sudo -u "+user+" "+admin_shell)
     sys.exit(0)
 
+if args.cap_add:
+    args.cap_add = args.cap_add.split(",")
 
 is_scp_cmd = False
 if args.cmd:
@@ -196,7 +204,8 @@ if len(containers(container_filter=args.name)) == 0:
     host_config = cli.create_host_config(
         binds=binds,
         restart_policy={'Name' : 'unless-stopped'},
-        privileged=args.privileged)
+        privileged=args.privileged,
+        cap_add=args.cap_add)
 
     #cli.pull(args.image)
     userpwd = getpwnam(user)
@@ -236,6 +245,8 @@ if not is_scp_cmd:
 docker_arg = "-i" if not sys.stdout.isatty() or is_scp_cmd else "-it"
 os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd)
 
+if args.post_cmd:
+    os.system('docker exec -it {} sh -c \'{}\''.format(args.full_name, args.post_cmd))
 if args.temp:
     cli.remove_container(args.full_name, v=True, force=True)
 
