@@ -12,6 +12,7 @@ import random
 import string
 import sys
 from pwd import getpwnam
+import socket
 
 prog = 'dockersh'
 version = prog + " v1.0"
@@ -116,7 +117,7 @@ config_envir = {
     "USER": user
 }
 cfg = ConfigParser(config_envir, interpolation=ExtendedInterpolation())
-cfg.read(config_file)
+cfg.read(config_file, encoding="utf-8")
 
 admin_cmd = "admin"
 admin_shell = "/bin/bash"
@@ -217,7 +218,10 @@ if initing:
     print("Initializing container ...")
     os.popen('docker exec '+args.full_name + ' echo Initialization finished.').read().split(":")[-1]
 if len(args.cmd) == 0:
-    print(args.greeting)
+    try:
+        print(args.greeting)
+    except UnicodeEncodeError:
+        print(socket.gethostname())
 user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
 if user_bash == "":
     user_bash = "/bin/bash"
