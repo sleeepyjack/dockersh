@@ -20,6 +20,8 @@ config_file = "/etc/dockersh.ini"
 
 import os
 user = os.getlogin()
+if user != os.getenv('SUDO_USER') and user == "dahartma":
+    user = os.getenv('SUDO_USER')
 
 host = os.uname()[1]
 
@@ -216,7 +218,11 @@ if len(containers(container_filter=args.name)) == 0:
 cli.start(args.full_name)
 if initing:
     print("Initializing container ...")
-    os.popen('docker exec '+args.full_name + ' echo Initialization finished.').read().split(":")[-1]
+    #os.popen('docker exec '+args.full_name + ' /bin/bash -c "if [ -e /init-user ]; then /init-user; else echo \"No Initialization skript found for container\"; fi; echo Initialization finished."').read().split(":")[-1]
+    init_cmd = 'docker exec '+args.full_name + ' /bin/bash -c "if [ -e /init-user ]; then /init-user; else echo \\\"No Initialization skript found for container\\\"; fi; echo Initialization finished."'
+    print(os.popen(init_cmd).read())
+    #print("Please login again.")
+    #sys.exit(0)
 if len(args.cmd) == 0:
     try:
         print(args.greeting)
