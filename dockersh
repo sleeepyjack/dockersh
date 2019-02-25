@@ -225,7 +225,7 @@ if initing:
     #sys.exit(0)
 if len(args.cmd) == 0:
     try:
-        print(args.greeting)
+        print(args.greeting.replace("```",""))
     except UnicodeEncodeError:
         print(socket.gethostname())
 user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
