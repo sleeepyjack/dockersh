@@ -148,7 +148,7 @@ if args.cmd == admin_cmd:
     sys.exit(0)
 
 
-if cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["maintenance"] == "on" and not "maintenance_scp" in cfg["ADMIN"] or cfg["ADMIN"]["maintenance_scp"] != "on":
+if cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["maintenance"] == "on" and (not "maintenance_scp" in cfg["ADMIN"] or cfg["ADMIN"]["maintenance_scp"] != "on"):
     if "maintenance_text" in cfg["ADMIN"]:
         print(cfg["ADMIN"]["maintenance_text"])
     else:
@@ -157,7 +157,7 @@ if cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["
 
 is_scp_cmd = False
 if args.cmd:
-    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls")):
+    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls","*")):
         is_scp_cmd = True
     if args.cmd == "envir":
         print(os.environ)
