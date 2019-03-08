@@ -144,7 +144,7 @@ if args.cmd == admin_cmd:
         print("Try login using:")
         print("ssh -t ...")
         sys.exit(0)
-    os.system("sudo -u "+user+" "+admin_shell)
+    os.system("sudo -u "+user+" sudo "+admin_shell)
     sys.exit(0)
 
 
@@ -251,13 +251,11 @@ if user_bash == "":
     user_bash = "/bin/bash"
 cmd = args.cmd if args.cmd else user_bash
 
-# only sometimes working hotfix for https://github.com/moby/moby/issues/35407
-if not is_scp_cmd:
-    cmd = "/bin/bash -c \"sleep 0.1 && " + cmd + "\""
+cmd = "/bin/bash -c \"" + cmd + "\""
  
 # a tty needs -it, scp needs -i
 docker_arg = "-i" if not sys.stdout.isatty() or is_scp_cmd else "-it"
-os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd)
+os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd+"")
 
 if args.temp:
     cli.remove_container(args.full_name, v=True, force=True)
