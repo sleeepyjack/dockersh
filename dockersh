@@ -20,7 +20,7 @@ version = prog + " v1.0"
 config_file = "/etc/dockersh.ini"
 
 user = os.getlogin()
-host = os.uname()[1]
+hostname = socket.gethostname()
 
 cli = docker.APIClient()
 
@@ -114,14 +114,14 @@ def parse_args():
 
 
 # load ini
-cfg = ConfigParser({"USER": user}, interpolation=ExtendedInterpolation())
+cfg = ConfigParser({"USER": user, "HOSTNAME": hostname}, interpolation=ExtendedInterpolation())
 cfg.read(config_file, encoding="utf-8")
 
 if os.getenv("USER") and user != os.getenv('USER') and user in cfg["ADMIN"]["names"].splitlines():
     user = os.getenv('USER')
 
     # reread config
-    cfg = ConfigParser({"USER": user}, interpolation=ExtendedInterpolation())
+    cfg = ConfigParser({"USER": user, "HOSTNAME": hostname}, interpolation=ExtendedInterpolation())
     cfg.read(config_file, encoding="utf-8")
 
 
@@ -148,6 +148,13 @@ if args.cmd == admin_cmd:
     sys.exit(0)
 
 
+if cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["maintenance"] == "on" and not "maintenance_scp" in cfg["ADMIN"] or cfg["ADMIN"]["maintenance_scp"] != "on":
+    if "maintenance_text" in cfg["ADMIN"]:
+        print(cfg["ADMIN"]["maintenance_text"])
+    else:
+        print("This Maschine is in Maintanence Mode.")
+    sys.exit(0)
+
 is_scp_cmd = False
 if args.cmd:
     if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls")):
@@ -156,6 +163,13 @@ if args.cmd:
         print(os.environ)
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
+
+if not is_scp_cmd and cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["maintenance"] == "on":
+    if "maintenance_text" in cfg["ADMIN"]:
+        print(cfg["ADMIN"]["maintenance_text"])
+    else:
+        print("This Maschine is in Maintanence Mode. However, you can copy files with scp, rsync, sftp or list files with ls without connecting to the maschine.")
+    sys.exit(0)
 
 if args.temp:
     if not image_passed:
@@ -231,7 +245,7 @@ if len(args.cmd) == 0:
     try:
         print(args.greeting.replace("```",""))
     except UnicodeEncodeError:
-        print(socket.gethostname())
+        print(hostname)
 user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
 if user_bash == "":
     user_bash = "/bin/bash"
