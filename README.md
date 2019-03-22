@@ -96,6 +96,25 @@ to create a local image named 'ubuntu_user' that - together with dockersh - crea
 **Note:** By default, it will overwrite the entrypoint of the 'cloned' image.
 
 
+### Admin commands
+First, register in `dockersh.ini` as an administrator.
+```
+    [ADMIN]
+    names = admin_user1
+```
+
+**Log into host-system**:
+```
+    ssh myserver admin
+```
+
+**Log in as another user**:
+```
+    USER=otheruser dockersh
+```
+
+
+
 ### Backup
 The home directory of the user is mounted inside of the container and can be used to store data persistently.
 However, since the container state is __non-persistent__, make sure you commit your running containers from time to time.
@@ -109,3 +128,6 @@ This calls the backup script once every day at 12 AM.
 
 ### Disclaimer
 This software __does not__ guarantee perfect encapsulation and security, since Docker itself may have some security issues.
+
+
+

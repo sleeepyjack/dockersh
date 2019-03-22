@@ -12,15 +12,15 @@ import random
 import string
 import sys
 from pwd import getpwnam
+import socket
+import os
 
 prog = 'dockersh'
 version = prog + " v1.0"
 config_file = "/etc/dockersh.ini"
 
-import os
 user = os.getlogin()
-
-host = os.uname()[1]
+hostname = socket.gethostname()
 
 cli = docker.APIClient()
 
@@ -111,12 +111,19 @@ def parse_args():
     return args
 
 
+
+
 # load ini
-config_envir = {
-    "USER": user
-}
-cfg = ConfigParser(config_envir, interpolation=ExtendedInterpolation())
-cfg.read(config_file)
+cfg = ConfigParser({"USER": user, "HOSTNAME": hostname}, interpolation=ExtendedInterpolation())
+cfg.read(config_file, encoding="utf-8")
+
+if os.getenv("USER") and user != os.getenv('USER') and user in cfg["ADMIN"]["names"].splitlines():
+    user = os.getenv('USER')
+
+    # reread config
+    cfg = ConfigParser({"USER": user, "HOSTNAME": hostname}, interpolation=ExtendedInterpolation())
+    cfg.read(config_file, encoding="utf-8")
+
 
 admin_cmd = "admin"
 admin_shell = "/bin/bash"
@@ -137,18 +144,32 @@ if args.cmd == admin_cmd:
         print("Try login using:")
         print("ssh -t ...")
         sys.exit(0)
-    os.system("sudo -u "+user+" "+admin_shell)
+    os.system("sudo -u "+user+" sudo "+admin_shell)
     sys.exit(0)
 
 
+if cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["maintenance"] == "on" and (not "maintenance_scp" in cfg["ADMIN"] or cfg["ADMIN"]["maintenance_scp"] != "on"):
+    if "maintenance_text" in cfg["ADMIN"]:
+        print(cfg["ADMIN"]["maintenance_text"])
+    else:
+        print("This Maschine is in Maintanence Mode.")
+    sys.exit(0)
+
 is_scp_cmd = False
 if args.cmd:
-    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls")):
+    if os.path.basename(args.cmd).startswith(("scp","rsync --server","sftp-server","ls","*")):
         is_scp_cmd = True
     if args.cmd == "envir":
         print(os.environ)
 name_passed  = (args.name  != "")
 image_passed = (args.image != "")
+
+if not is_scp_cmd and cfg.has_section("ADMIN") and "maintenance" in cfg["ADMIN"] and cfg["ADMIN"]["maintenance"] == "on":
+    if "maintenance_text" in cfg["ADMIN"]:
+        print(cfg["ADMIN"]["maintenance_text"])
+    else:
+        print("This Maschine is in Maintanence Mode. However, you can copy files with scp, rsync, sftp or list files with ls without connecting to the maschine.")
+    sys.exit(0)
 
 if args.temp:
     if not image_passed:
@@ -215,21 +236,26 @@ if len(containers(container_filter=args.name)) == 0:
 cli.start(args.full_name)
 if initing:
     print("Initializing container ...")
-    os.popen('docker exec '+args.full_name + ' echo Initialization finished.').read().split(":")[-1]
+    #os.popen('docker exec '+args.full_name + ' /bin/bash -c "if [ -e /init-user ]; then /init-user; else echo \"No Initialization skript found for container\"; fi; echo Initialization finished."').read().split(":")[-1]
+    init_cmd = 'docker exec '+args.full_name + ' /bin/bash -c "if [ -e /init-user ]; then /init-user; else echo \\\"No Initialization skript found for container\\\"; fi; echo Initialization finished."'
+    print(os.popen(init_cmd).read())
+    #print("Please login again.")
+    #sys.exit(0)
 if len(args.cmd) == 0:
-    print(args.greeting)
+    try:
+        print(args.greeting.replace("```",""))
+    except UnicodeEncodeError:
+        print(hostname)
 user_bash = os.popen('docker exec -u root '+args.full_name + ' getent passwd '+user+'').read().split(":")[-1]
 if user_bash == "":
     user_bash = "/bin/bash"
 cmd = args.cmd if args.cmd else user_bash
 
-# only sometimes working hotfix for https://github.com/moby/moby/issues/35407
-if not is_scp_cmd:
-    cmd = "/bin/bash -c \"sleep 0.1 && " + cmd + "\""
+cmd = "/bin/bash -c \"" + cmd + "\""
  
 # a tty needs -it, scp needs -i
 docker_arg = "-i" if not sys.stdout.isatty() or is_scp_cmd else "-it"
-os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd)
+os.system('docker exec -u '+user+" " + docker_arg +' '+ args.full_name + ' ' + cmd+"")
 
 if args.temp:
     cli.remove_container(args.full_name, v=True, force=True)
