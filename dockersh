@@ -117,7 +117,7 @@ def parse_args():
 cfg = ConfigParser({"USER": user, "HOSTNAME": hostname}, interpolation=ExtendedInterpolation())
 cfg.read(config_file, encoding="utf-8")
 
-if os.getenv("USER") and user != os.getenv('USER') and user in cfg["ADMIN"]["names"].splitlines():
+if os.getenv("USER") and user != os.getenv('USER') and user in cfg.get('ADMIN', 'names', fallback="").splitlines():
     user = os.getenv('USER')
 
     # reread config
